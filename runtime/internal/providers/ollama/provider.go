@@ -151,3 +151,55 @@ type generateResponse struct {
 	Done     bool   `json:"done"`
 	Error    string `json:"error"`
 }
+
+// Embed calls the Ollama /api/embeddings endpoint and returns the embedding
+// vector for the given text.  Implements providers.EmbeddingProvider.
+func (p *Provider) Embed(ctx context.Context, text string) ([]float32, error) {
+	type request struct {
+		Model  string `json:"model"`
+		Prompt string `json:"prompt"`
+	}
+
+	type response struct {
+		Embedding []float32 `json:"embedding"`
+		Error     string    `json:"error"`
+	}
+
+	encoded, err := json.Marshal(request{Model: p.model, Prompt: text})
+	if err != nil {
+		return nil, fmt.Errorf("marshal embed request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/api/embeddings", strings.NewReader(string(encoded)))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4*1024))
+		return nil, fmt.Errorf("ollama embed failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(message)))
+	}
+
+	var payload response
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("decode ollama embed response: %w", err)
+	}
+
+	if strings.TrimSpace(payload.Error) != "" {
+		return nil, fmt.Errorf("ollama embed error: %s", payload.Error)
+	}
+
+	if len(payload.Embedding) == 0 {
+		return nil, fmt.Errorf("ollama returned empty embedding")
+	}
+
+	return payload.Embedding, nil
+}

@@ -10,6 +10,7 @@ import (
 
 	agentapi "github.com/digitalcenter/vscode-ex-llm/runtime/internal/api"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/providers"
+	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/redismem"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/tools"
 )
 
@@ -27,6 +28,10 @@ type Service struct {
 	terminalState map[string]terminalContinuationState
 	sessionMu     sync.Mutex
 	activeSession map[string]string
+	// Redis-backed context layers (optional — both may be nil).
+	embedder    providers.EmbeddingProvider
+	semCache    *redismem.SemanticCache
+	ltmStore    *redismem.MemoryStore
 }
 
 func NewService(provider providers.Provider, registry *tools.Registry) *Service {
@@ -37,6 +42,20 @@ func NewServiceWithStore(
 	provider providers.Provider,
 	registry *tools.Registry,
 	store conversationStore,
+) *Service {
+	return NewServiceWithRedis(provider, registry, store, nil, nil, nil)
+}
+
+// NewServiceWithRedis creates a Service with optional Redis-backed semantic
+// caching (semCache) and long-term memory (ltmStore).  Either argument may be
+// nil; the embedder is required when any Redis layer is non-nil.
+func NewServiceWithRedis(
+	provider providers.Provider,
+	registry *tools.Registry,
+	store conversationStore,
+	embedder providers.EmbeddingProvider,
+	semCache *redismem.SemanticCache,
+	ltmStore *redismem.MemoryStore,
 ) *Service {
 	if provider == nil {
 		panic("provider is required")
@@ -53,6 +72,9 @@ func NewServiceWithStore(
 		commandMemory: make(map[string][]commandMemoryEntry),
 		terminalState: make(map[string]terminalContinuationState),
 		activeSession: make(map[string]string),
+		embedder:      embedder,
+		semCache:      semCache,
+		ltmStore:      ltmStore,
 	}
 }
 
@@ -95,6 +117,9 @@ func (s *Service) runInternal(
 	if strings.TrimSpace(sessionID) != "" {
 		req.SessionID = sessionID
 	}
+	// Load compact conversation history BEFORE persisting the current request so the
+	// current turn is not duplicated (it is already injected via req.Prompt below).
+	conversationHistory := s.loadCompactHistory(ctx, req.SessionID)
 	if persistObservation := s.persistRequestRecord(ctx, requestID, req); persistObservation != nil {
 		sessionObservations = append(sessionObservations, *persistObservation)
 	}
@@ -327,11 +352,109 @@ func (s *Service) runInternal(
 		}
 	}
 
-	providerPrompt := buildProviderPrompt(req, toolContextBlocks)
+	providerPrompt := buildProviderPrompt(req, toolContextBlocks, conversationHistory)
+
+	// --- Redis context layers -------------------------------------------------
+	// Embed the current prompt once and use it for both semantic cache lookup
+	// and long-term memory retrieval.  All Redis operations are best-effort:
+	// errors are logged as observations but never fail the request.
+	var promptEmbedding []float32
+	if s.embedder != nil {
+		if emb, embErr := s.embedder.Embed(ctx, req.Prompt); embErr == nil {
+			promptEmbedding = emb
+			// Ensure indexes exist (idempotent, uses embedding dim).
+			if s.semCache != nil {
+				_ = s.semCache.EnsureIndex(ctx, len(emb))
+			}
+			if s.ltmStore != nil {
+				_ = s.ltmStore.EnsureIndex(ctx, len(emb))
+			}
+		} else {
+			observations = append(observations, agentapi.Observation{
+				Source:  "redis.embed",
+				Message: fmt.Sprintf("embedding failed (redis layers skipped): %v", embErr),
+			})
+		}
+	}
+
+	// 1. Semantic cache lookup: skip LLM if a near-identical prompt was answered.
+	if s.semCache != nil && len(promptEmbedding) > 0 {
+		if cached, hit := s.semCache.Get(ctx, promptEmbedding); hit {
+			observations = append(observations, agentapi.Observation{
+				Source:  "redis.semantic_cache",
+				Message: "cache hit — returning cached response",
+			})
+			if emit != nil {
+				_ = emit("observation", agentapi.Observation{Source: "redis.semantic_cache", Message: "cache hit"})
+				_ = emit("token", map[string]string{"requestId": requestID, "text": cached})
+			}
+
+			response := agentapi.AgentResponse{
+				RequestID:    requestID,
+				Status:       "completed",
+				Plan:         plan,
+				Observations: observations,
+				FinalMessage: cached,
+				DurationMs:   time.Since(started).Milliseconds(),
+				SessionID:    sessionID,
+			}
+			if persistObservation := s.persistResponseRecord(ctx, requestID, response); persistObservation != nil {
+				response.Observations = append(response.Observations, *persistObservation)
+			}
+			if emit != nil {
+				_ = emit("status", map[string]string{"requestId": requestID, "status": "completed"})
+				_ = emit("done", response)
+			}
+
+			return response, nil
+		}
+		observations = append(observations, agentapi.Observation{
+			Source:  "redis.semantic_cache",
+			Message: "cache miss — invoking provider",
+		})
+	}
+
+	// 2. Long-term memory retrieval: inject relevant memories as context.
+	if s.ltmStore != nil && len(promptEmbedding) > 0 {
+		workspaceID := resolveWorkspaceRoot(req.Context)
+		memEntries, memErr := s.ltmStore.Retrieve(ctx, workspaceID, promptEmbedding, 0)
+		if memErr == nil && len(memEntries) > 0 {
+			if block := redismem.FormatMemoryForPrompt(memEntries); block != "" {
+				toolContextBlocks = append(toolContextBlocks, "Long-term agent memory (most relevant):\n"+block)
+				// Rebuild prompt now that we have LTM context.
+				providerPrompt = buildProviderPrompt(req, toolContextBlocks, conversationHistory)
+				observations = append(observations, agentapi.Observation{
+					Source:  "redis.ltm",
+					Message: fmt.Sprintf("retrieved %d long-term memory entries", len(memEntries)),
+				})
+			}
+		} else if memErr != nil {
+			observations = append(observations, agentapi.Observation{
+				Source:  "redis.ltm",
+				Message: fmt.Sprintf("retrieval error (skipped): %v", memErr),
+			})
+		}
+	}
+	// -------------------------------------------------------------------------
+
 	finalMessage, err := s.generateProviderOutput(ctx, requestID, providerPrompt, emit)
 	if err != nil {
 		s.emitError(emit, requestID, err)
 		return agentapi.AgentResponse{}, err
+	}
+
+	// 3. Post-response: store in semantic cache and long-term memory.
+	if len(promptEmbedding) > 0 && strings.TrimSpace(finalMessage) != "" {
+		if s.semCache != nil {
+			_ = s.semCache.Set(ctx, req.Prompt, promptEmbedding, finalMessage)
+		}
+		if s.ltmStore != nil {
+			workspaceID := resolveWorkspaceRoot(req.Context)
+			_ = s.ltmStore.Store(ctx, workspaceID, "agent_response",
+				fmt.Sprintf("Q: %s\nA: %s", truncateHistory(req.Prompt), truncateHistory(finalMessage)),
+				promptEmbedding,
+			)
+		}
 	}
 
 	if mode == "plan" {
@@ -375,6 +498,19 @@ func (s *Service) runInternal(
 	}
 
 	return response, nil
+}
+
+func (s *Service) loadCompactHistory(ctx context.Context, sessionID string) string {
+	if s.store == nil || strings.TrimSpace(sessionID) == "" {
+		return ""
+	}
+
+	messages, err := s.store.LoadRecentMessages(ctx, sessionID, historyLoadLimit)
+	if err != nil || len(messages) == 0 {
+		return ""
+	}
+
+	return compactConversationHistory(messages)
 }
 
 func (s *Service) generateProviderOutput(

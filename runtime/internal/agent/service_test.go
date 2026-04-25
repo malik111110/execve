@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	agentapi "github.com/digitalcenter/vscode-ex-llm/runtime/internal/api"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/providers/mock"
+	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/storage"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/tools"
 )
 
@@ -353,4 +355,143 @@ func TestRunFeedsRecentCommandResultsIntoProviderPrompt(t *testing.T) {
 	if !strings.Contains(provider.lastPrompt, "memory-check") {
 		t.Fatalf("expected provider prompt to include recent stdout, got %q", provider.lastPrompt)
 	}
+}
+
+// --- compact conversation history tests ---
+
+func TestCompactConversationHistoryEmpty(t *testing.T) {
+	result := compactConversationHistory(nil)
+	if result != "" {
+		t.Fatalf("expected empty string for nil messages, got %q", result)
+	}
+
+	result = compactConversationHistory([]agentapi.SessionMessage{})
+	if result != "" {
+		t.Fatalf("expected empty string for empty messages, got %q", result)
+	}
+}
+
+func TestCompactConversationHistoryFormatsOneTurn(t *testing.T) {
+	messages := []agentapi.SessionMessage{
+		{Role: "user", Content: "hello"},
+		{Role: "assistant", Content: "hi there"},
+	}
+
+	result := compactConversationHistory(messages)
+
+	if !strings.Contains(result, "User: hello") {
+		t.Fatalf("expected user turn, got %q", result)
+	}
+
+	if !strings.Contains(result, "Assistant: hi there") {
+		t.Fatalf("expected assistant turn, got %q", result)
+	}
+}
+
+func TestCompactConversationHistoryTruncatesLongMessages(t *testing.T) {
+	longContent := strings.Repeat("x", historyMaxMsgChars+100)
+	messages := []agentapi.SessionMessage{
+		{Role: "user", Content: longContent},
+		{Role: "assistant", Content: "ok"},
+	}
+
+	result := compactConversationHistory(messages)
+
+	if !strings.Contains(result, "...") {
+		t.Fatalf("expected truncation indicator in %q", result)
+	}
+
+	userLine := ""
+	for _, line := range strings.Split(result, "\n") {
+		if strings.HasPrefix(line, "User: ") {
+			userLine = line
+			break
+		}
+	}
+
+	// prefix "User: " is 6 chars, content max is historyMaxMsgChars, suffix "..." is 3
+	maxLineLen := 6 + historyMaxMsgChars + 3
+	if len(userLine) > maxLineLen {
+		t.Fatalf("user line too long: got %d, want <= %d", len(userLine), maxLineLen)
+	}
+}
+
+func TestCompactConversationHistoryOmitsEarlierTurns(t *testing.T) {
+	// Build more turns than historyMaxTurns.
+	messages := make([]agentapi.SessionMessage, 0, (historyMaxTurns+3)*2)
+	for i := 0; i < historyMaxTurns+3; i++ {
+		messages = append(messages,
+			agentapi.SessionMessage{Role: "user", Content: fmt.Sprintf("q%d", i)},
+			agentapi.SessionMessage{Role: "assistant", Content: fmt.Sprintf("a%d", i)},
+		)
+	}
+
+	result := compactConversationHistory(messages)
+
+	if !strings.Contains(result, "omitted") {
+		t.Fatalf("expected omitted notice for excess turns, got %q", result)
+	}
+
+	// The most recent user message should be present.
+	last := historyMaxTurns + 3 - 1
+	if !strings.Contains(result, fmt.Sprintf("q%d", last)) {
+		t.Fatalf("expected last user message q%d in history, got %q", last, result)
+	}
+}
+
+func TestCompactHistoryInjectedIntoProviderPrompt(t *testing.T) {
+	provider := &promptCaptureProvider{}
+	svc := NewServiceWithStore(provider, tools.NewRegistry(), &stubConversationStore{
+		messages: []agentapi.SessionMessage{
+			{Role: "user", Content: "what is 2+2"},
+			{Role: "assistant", Content: "It is 4"},
+		},
+	})
+
+	_, err := svc.Run(context.Background(), agentapi.AgentRequest{
+		Prompt:    "follow up question",
+		SessionID: "test-session-1",
+		Settings:  agentapi.AgentSettings{MaxSteps: 1},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !strings.Contains(provider.lastPrompt, "Conversation history:") {
+		t.Fatalf("expected conversation history section in prompt, got %q", provider.lastPrompt)
+	}
+
+	if !strings.Contains(provider.lastPrompt, "what is 2+2") {
+		t.Fatalf("expected prior user message in prompt, got %q", provider.lastPrompt)
+	}
+
+	if !strings.Contains(provider.lastPrompt, "It is 4") {
+		t.Fatalf("expected prior assistant reply in prompt, got %q", provider.lastPrompt)
+	}
+}
+
+// stubConversationStore is a minimal in-memory store used by tests.
+type stubConversationStore struct {
+	messages []agentapi.SessionMessage
+}
+
+func (s *stubConversationStore) EnsureSession(_ context.Context, input storage.SessionUpsertInput) (storage.SessionState, error) {
+	id := input.SessionID
+	if id == "" {
+		id = "stub-session"
+	}
+
+	return storage.SessionState{ID: id, Created: false}, nil
+}
+
+func (s *stubConversationStore) RecordRequest(_ context.Context, _ storage.RequestRecord) error {
+	return nil
+}
+
+func (s *stubConversationStore) RecordResponse(_ context.Context, _ storage.ResponseRecord) error {
+	return nil
+}
+
+func (s *stubConversationStore) LoadRecentMessages(_ context.Context, _ string, _ int) ([]agentapi.SessionMessage, error) {
+	return s.messages, nil
 }

@@ -17,7 +17,7 @@ Please do not report security vulnerabilities in public issues.
 
 Use one of these private channels:
 
-1. GitHub private vulnerability reporting for this repository (if enabled)
+1. GitHub private vulnerability reporting for this repository
 2. Private contact to a repository owner through their GitHub profile
 
 Include as much detail as possible:

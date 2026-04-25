@@ -13,6 +13,7 @@ import (
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/agent"
 	agentapi "github.com/digitalcenter/vscode-ex-llm/runtime/internal/api"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/providers"
+	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/redismem"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/storage"
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/tools"
 )
@@ -43,7 +44,33 @@ func main() {
 		}
 	}()
 
-	service := agent.NewServiceWithStore(provider, registry, conversationStore)
+	// Redis context layers (optional — only activated when AGENT_REDIS_ADDR is set).
+	redisClient, redisErr := redismem.NewClientFromEnv()
+	if redisErr != nil {
+		log.Printf("redis unavailable (%v) — semantic cache and long-term memory disabled", redisErr)
+	}
+	if redisClient != nil {
+		defer func() {
+			if closeErr := redisClient.Close(); closeErr != nil {
+				log.Printf("failed to close redis client: %v", closeErr)
+			}
+		}()
+		log.Println("redis connected — semantic cache and long-term memory enabled")
+	}
+
+	var embedder providers.EmbeddingProvider
+	if redisClient != nil {
+		if ep, ok := provider.(providers.EmbeddingProvider); ok {
+			embedder = ep
+		} else {
+			log.Printf("provider %q does not support embeddings — redis context layers disabled", provider.Name())
+		}
+	}
+
+	semCache := redismem.NewSemanticCache(redisClient)
+	ltmStore := redismem.NewMemoryStore(redisClient)
+
+	service := agent.NewServiceWithRedis(provider, registry, conversationStore, embedder, semCache, ltmStore)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {

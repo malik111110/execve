@@ -23,15 +23,19 @@
       "isBackground": true,
       "problemMatcher": [
         {
-          "owner": "custom",
+          "owner": "local-agent-runtime",
+          "source": "local-agent-runtime",
+          "fileLocation": ["relative", "${workspaceFolder}/runtime"],
           "pattern": {
-            "regexp": "^(.*)$",
+            "regexp": "^__never_matches_anything__$",
+            "file": 1,
+            "location": 1,
             "message": 1
           },
           "background": {
             "activeOnStart": true,
-            "beginsPattern": ".",
-            "endsPattern": "agent runtime listening on"
+            "beginsPattern": "^.*(starting|initializing|go run|loading|provider).*$",
+            "endsPattern": "agent runtime listening on|already running"
           }
         }
       ]
@@ -46,15 +50,19 @@
       "isBackground": true,
       "problemMatcher": [
         {
-          "owner": "custom",
+          "owner": "local-agent-runtime",
+          "source": "local-agent-runtime",
+          "fileLocation": ["relative", "${workspaceFolder}/runtime"],
           "pattern": {
-            "regexp": "^(.*)$",
+            "regexp": "^__never_matches_anything__$",
+            "file": 1,
+            "location": 1,
             "message": 1
           },
           "background": {
             "activeOnStart": true,
-            "beginsPattern": ".",
-            "endsPattern": "agent runtime listening on"
+            "beginsPattern": "^.*(starting|initializing|go run|loading|provider).*$",
+            "endsPattern": "agent runtime listening on|already running"
           }
         }
       ]

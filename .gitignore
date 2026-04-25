@@ -12,3 +12,6 @@ runtime/.cache/
 # Logs and temp
 *.log
 tmp/
+runtime/go.sum
+
+new_file.txt

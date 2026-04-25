@@ -174,43 +174,6 @@
           "command": "localAgent.studio.insertContext.failingTests",
           "when": "localAgent.studioOpen"
         }
-      ],
-      "editor/title": [
-        {
-          "command": "localAgent.studio.insertContext.activeSymbol",
-          "when": "localAgent.studioOpen",
-          "group": "navigation@40"
-        },
-        {
-          "command": "localAgent.studio.insertContext.gitDiff",
-          "when": "localAgent.studioOpen",
-          "group": "navigation@41"
-        },
-        {
-          "command": "localAgent.studio.insertContext.failingTests",
-          "when": "localAgent.studioOpen",
-          "group": "navigation@42"
-        },
-        {
-          "command": "localAgent.studio.continueCommand",
-          "when": "localAgent.studioOpen && !localAgent.studioBusy",
-          "group": "navigation@43"
-        },
-        {
-          "command": "localAgent.studio.stopCommand",
-          "when": "localAgent.studioOpen && !localAgent.studioBusy",
-          "group": "navigation@44"
-        },
-        {
-          "command": "localAgent.studio.acceptLatestDiff",
-          "when": "localAgent.studioOpen && localAgent.studioHasDiff",
-          "group": "navigation@45"
-        },
-        {
-          "command": "localAgent.studio.rejectLatestDiff",
-          "when": "localAgent.studioOpen && localAgent.studioHasDiff",
-          "group": "navigation@46"
-        }
       ]
     },
     "configuration": {

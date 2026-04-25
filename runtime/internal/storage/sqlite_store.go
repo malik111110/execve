@@ -728,6 +728,12 @@ func normalizeLimit(limit int, fallback int) int {
 	return limit
 }
 
+// LoadRecentMessages returns up to limit messages for the session in chronological order.
+// It is the implementation of the conversationStore interface method used by the agent service.
+func (s *SQLiteStore) LoadRecentMessages(ctx context.Context, sessionID string, limit int) ([]agentapi.SessionMessage, error) {
+	return s.ListSessionMessages(ctx, sessionID, limit)
+}
+
 func reverseSessionMessages(values []agentapi.SessionMessage) {
 	for left, right := 0, len(values)-1; left < right; left, right = left+1, right-1 {
 		values[left], values[right] = values[right], values[left]

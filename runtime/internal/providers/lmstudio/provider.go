@@ -187,3 +187,55 @@ type streamResponse struct {
 		} `json:"delta"`
 	} `json:"choices"`
 }
+
+// Embed calls the LM Studio OpenAI-compatible /v1/embeddings endpoint and
+// returns the embedding vector for the given text.
+// Implements providers.EmbeddingProvider.
+func (p *Provider) Embed(ctx context.Context, text string) ([]float32, error) {
+	type request struct {
+		Model string `json:"model"`
+		Input string `json:"input"`
+	}
+
+	type embeddingData struct {
+		Embedding []float32 `json:"embedding"`
+	}
+
+	type response struct {
+		Data []embeddingData `json:"data"`
+	}
+
+	encoded, err := json.Marshal(request{Model: p.model, Input: text})
+	if err != nil {
+		return nil, fmt.Errorf("marshal embed request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, p.baseURL+"/v1/embeddings", strings.NewReader(string(encoded)))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := p.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 4*1024))
+		return nil, fmt.Errorf("lm studio embed failed (%d): %s", resp.StatusCode, strings.TrimSpace(string(message)))
+	}
+
+	var payload response
+	if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+		return nil, fmt.Errorf("decode lm studio embed response: %w", err)
+	}
+
+	if len(payload.Data) == 0 || len(payload.Data[0].Embedding) == 0 {
+		return nil, fmt.Errorf("lm studio returned empty embedding")
+	}
+
+	return payload.Data[0].Embedding, nil
+}

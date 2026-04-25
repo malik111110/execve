@@ -10,6 +10,80 @@ import (
 	agentapi "github.com/digitalcenter/vscode-ex-llm/runtime/internal/api"
 )
 
+const (
+	// historyMaxTurns is the maximum number of user/assistant turn pairs to include.
+	historyMaxTurns = 10
+	// historyMaxMsgChars is the maximum characters kept per individual message.
+	historyMaxMsgChars = 500
+	// historyLoadLimit is the number of messages fetched from the store before compaction.
+	historyLoadLimit = historyMaxTurns*2 + 10
+)
+
+// compactConversationHistory converts a chronological slice of session messages into
+// a compact, token-bounded string suitable for injection into a provider prompt.
+// It keeps at most historyMaxTurns complete user/assistant pairs (the most recent ones),
+// truncates long messages, and notes any omitted earlier turns.
+func compactConversationHistory(messages []agentapi.SessionMessage) string {
+	if len(messages) == 0 {
+		return ""
+	}
+
+	// Group into (user, assistant) turn pairs, walking backwards from the end.
+	type turn struct {
+		user      string
+		assistant string
+	}
+
+	turns := make([]turn, 0, historyMaxTurns)
+	i := len(messages) - 1
+	for i >= 0 && len(turns) < historyMaxTurns {
+		if messages[i].Role == "assistant" && i > 0 && messages[i-1].Role == "user" {
+			turns = append(turns, turn{
+				user:      messages[i-1].Content,
+				assistant: messages[i].Content,
+			})
+			i -= 2
+		} else {
+			i--
+		}
+	}
+
+	if len(turns) == 0 {
+		return ""
+	}
+
+	// Reverse so the oldest kept turn comes first.
+	for l, r := 0, len(turns)-1; l < r; l, r = l+1, r-1 {
+		turns[l], turns[r] = turns[r], turns[l]
+	}
+
+	omitted := len(messages)/2 - len(turns)
+
+	var b strings.Builder
+	if omitted > 0 {
+		fmt.Fprintf(&b, "[%d earlier turn(s) omitted]\n", omitted)
+	}
+
+	for _, t := range turns {
+		b.WriteString("User: ")
+		b.WriteString(truncateHistory(t.user))
+		b.WriteString("\nAssistant: ")
+		b.WriteString(truncateHistory(t.assistant))
+		b.WriteString("\n")
+	}
+
+	return strings.TrimRight(b.String(), "\n")
+}
+
+func truncateHistory(s string) string {
+	s = strings.TrimSpace(s)
+	if len(s) <= historyMaxMsgChars {
+		return s
+	}
+
+	return s[:historyMaxMsgChars] + "..."
+}
+
 func (s *Service) runCandidateTools(ctx context.Context, req agentapi.AgentRequest) ([]agentapi.Observation, []string) {
 	observations := make([]agentapi.Observation, 0, 3)
 	contextBlocks := make([]string, 0, 3)
@@ -106,12 +180,18 @@ func (s *Service) runCandidateTools(ctx context.Context, req agentapi.AgentReque
 	return observations, contextBlocks
 }
 
-func buildProviderPrompt(req agentapi.AgentRequest, contextBlocks []string) string {
+func buildProviderPrompt(req agentapi.AgentRequest, contextBlocks []string, conversationHistory string) string {
 	var builder strings.Builder
 
 	if promptBundle := loadPromptBundle(req.Context.WorkspaceRoot); promptBundle != "" {
 		builder.WriteString("Agent guidance from repository prompts:\n")
 		builder.WriteString(promptBundle)
+		builder.WriteString("\n\n")
+	}
+
+	if conversationHistory != "" {
+		builder.WriteString("Conversation history:\n")
+		builder.WriteString(conversationHistory)
 		builder.WriteString("\n\n")
 	}
 

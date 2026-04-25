@@ -5,10 +5,7 @@ import {
   ContextInsertKind,
   StudioDiffSnapshot
 } from "./studioPanel";
-import {
-  LocalAgentWorkspaceTimelineProvider,
-  TimelineProviderLike
-} from "./workspaceTimeline";
+import { LocalAgentWorkspaceTimelineProvider } from "./workspaceTimeline";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Local LLM Agent");
@@ -16,18 +13,6 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const timelineProvider = new LocalAgentWorkspaceTimelineProvider();
   context.subscriptions.push(timelineProvider);
-
-  const workspaceWithTimeline = vscode.workspace as typeof vscode.workspace & {
-    registerTimelineProvider?: (scheme: string, provider: TimelineProviderLike) => vscode.Disposable;
-  };
-
-  if (workspaceWithTimeline.registerTimelineProvider) {
-    context.subscriptions.push(
-      workspaceWithTimeline.registerTimelineProvider("file", timelineProvider)
-    );
-  } else {
-    output.appendLine("[timeline] Workspace timeline API is unavailable in this VS Code runtime.");
-  }
 
   const panelOptions: AgentStudioPanelOptions = {
     onDiffSnapshot: (snapshot: StudioDiffSnapshot) => {

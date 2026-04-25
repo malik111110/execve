@@ -16,6 +16,7 @@ type conversationStore interface {
 	EnsureSession(context.Context, storage.SessionUpsertInput) (storage.SessionState, error)
 	RecordRequest(context.Context, storage.RequestRecord) error
 	RecordResponse(context.Context, storage.ResponseRecord) error
+	LoadRecentMessages(ctx context.Context, sessionID string, limit int) ([]agentapi.SessionMessage, error)
 }
 
 func (s *Service) ensureRequestSession(
