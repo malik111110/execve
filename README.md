@@ -45,12 +45,13 @@ This repository is scaffolded for a local-first coding agent:
 
 3. Launch the extension host from VS Code and run command:
 
-   - `Local Agent: Start Session`
+   - `Local Agent: Start Agent Session`
+   - `Local Agent: Start Chat Session`
 
 ## Current Scope
 
 - Deterministic request/plan/response loop
-- Agent vs chat mode toggle via `localAgent.mode`
+- One-click agent vs chat session commands in VS Code
 - Local HTTP bridge from extension to runtime
 - Streaming runtime responses to extension via SSE
 - Real provider integration for Ollama and LM Studio

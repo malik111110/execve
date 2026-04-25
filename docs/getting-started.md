@@ -44,7 +44,10 @@ npm run build
 
 1. Open this workspace in VS Code.
 2. Press `F5` to launch Extension Development Host.
-3. Run command: `Local Agent: Start Session`.
+3. Run one of these commands:
+
+	- `Local Agent: Start Agent Session`
+	- `Local Agent: Start Chat Session`
 
 ## 4. Try an End-to-End Request
 
@@ -65,12 +68,12 @@ If `localAgent.dryRun = true`, write actions are simulated and no files are chan
 
 ## 6. Agent Mode vs Chat Mode
 
-Use extension setting `localAgent.mode`:
+Mode selection is now one-click through commands:
 
-- `agent` (default): runtime prioritizes deterministic tool execution first (create file, execute command, command output to markdown file)
-- `chat`: runtime skips deterministic actions and prioritizes conversational model output
+- `Local Agent: Start Agent Session`: runtime prioritizes deterministic tool execution first (create file, execute command, command output to markdown file)
+- `Local Agent: Start Chat Session`: runtime skips deterministic actions and prioritizes conversational model output
 
-This lets you switch between reliable action execution and pure chat behavior.
+No mode setting toggle is required.
 
 ## 7. API Endpoints
 

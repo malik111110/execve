@@ -14,8 +14,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "localAgent.startSession",
-        "title": "Local Agent: Start Session"
+        "command": "localAgent.startAgentSession",
+        "title": "Local Agent: Start Agent Session"
+      },
+      {
+        "command": "localAgent.startChatSession",
+        "title": "Local Agent: Start Chat Session"
       }
     ],
     "configuration": {
@@ -41,15 +45,6 @@
           "type": "boolean",
           "default": false,
           "description": "If true, runtime actions are simulated and no file changes are applied."
-        },
-        "localAgent.mode": {
-          "type": "string",
-          "enum": [
-            "agent",
-            "chat"
-          ],
-          "default": "agent",
-          "description": "Execution mode: agent executes deterministic tools first, chat prioritizes conversational model responses."
         }
       }
     }

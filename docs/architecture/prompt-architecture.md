@@ -4,7 +4,7 @@ This document explains the prompt strategy used in this repository.
 
 ## Inspiration and Adaptation
 
-The design draws inspiration from Kodu/Claude Coder style systems:
+The design draws:
 
 - explicit prompt layering (main/planner/tools)
 - strict tool-call formatting for parser reliability
