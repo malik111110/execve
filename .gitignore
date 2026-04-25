@@ -1,0 +1,14 @@
+.DS_Store
+
+# Node / VS Code extension
+extension/node_modules/
+extension/out/
+extension/.vscode-test/
+
+# Go runtime
+runtime/bin/
+runtime/.cache/
+
+# Logs and temp
+*.log
+tmp/

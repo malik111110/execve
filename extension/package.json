@@ -1,0 +1,67 @@
+{
+  "name": "local-llm-coding-agent-extension",
+  "displayName": "Local LLM Coding Agent",
+  "description": "Local-first coding agent bridge for a Go runtime.",
+  "version": "0.0.1",
+  "publisher": "digitalcenter",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "localAgent.startSession",
+        "title": "Local Agent: Start Session"
+      }
+    ],
+    "configuration": {
+      "title": "Local Agent",
+      "properties": {
+        "localAgent.runtimeUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:8080",
+          "description": "Base URL for the local Go runtime API."
+        },
+        "localAgent.requestTimeoutMs": {
+          "type": "number",
+          "default": 120000,
+          "minimum": 1000,
+          "description": "Timeout for runtime requests in milliseconds."
+        },
+        "localAgent.defaultWorkspaceRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Fallback project root path when no VS Code workspace folder is open."
+        },
+        "localAgent.dryRun": {
+          "type": "boolean",
+          "default": false,
+          "description": "If true, runtime actions are simulated and no file changes are applied."
+        },
+        "localAgent.mode": {
+          "type": "string",
+          "enum": [
+            "agent",
+            "chat"
+          ],
+          "default": "agent",
+          "description": "Execution mode: agent executes deterministic tools first, chat prioritizes conversational model responses."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "watch": "tsc -w -p .",
+    "clean": "rm -rf out"
+  },
+  "devDependencies": {
+    "@types/node": "^20.16.11",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.6.3"
+  }
+}

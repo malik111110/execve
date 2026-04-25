@@ -1,0 +1,28 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Local Agent Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--disable-extensions",
+        "--extensionDevelopmentPath=${workspaceFolder}/extension"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/extension/out/**/*.js"
+      ],
+      "preLaunchTask": "extension: build"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Runtime + Extension (LM Studio)",
+      "configurations": [
+        "Run Local Agent Extension"
+      ],
+      "preLaunchTask": "runtime: run (lmstudio)"
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "tools": [
+    {
+      "name": "read_file",
+      "description": "Read file content with line range and byte limits.",
+      "arguments": {
+        "path": "string, required",
+        "start_line": "integer, optional, default 1",
+        "end_line": "integer, optional",
+        "max_bytes": "integer, optional"
+      }
+    },
+    {
+      "name": "search_code",
+      "description": "Search source files with query and optional include glob.",
+      "arguments": {
+        "query": "string, required",
+        "max_results": "integer, optional",
+        "include_glob": "string, optional"
+      }
+    },
+    {
+      "name": "git_diff",
+      "description": "Return workspace git diff (staged or unstaged).",
+      "arguments": {
+        "staged": "boolean, optional",
+        "path": "string, optional",
+        "max_bytes": "integer, optional"
+      }
+    },
+    {
+      "name": "create_file",
+      "description": "Create a new file (or overwrite when explicitly allowed).",
+      "arguments": {
+        "path": "string, required",
+        "content": "string, optional",
+        "overwrite": "boolean, optional, default false",
+        "dry_run": "boolean, optional",
+        "create_dirs": "boolean, optional, default true"
+      }
+    },
+    {
+      "name": "execute_command",
+      "description": "Execute a shell command in workspace root when explicitly enabled.",
+      "arguments": {
+        "command": "string, required",
+        "dry_run": "boolean, optional",
+        "timeout_ms": "integer, optional",
+        "max_output_bytes": "integer, optional"
+      }
+    }
+  ]
+}

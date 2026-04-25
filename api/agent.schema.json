@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/schemas/agent.schema.json",
+  "title": "Agent Run API",
+  "type": "object",
+  "properties": {
+    "request": {
+      "type": "object",
+      "required": [
+        "prompt",
+        "context",
+        "settings"
+      ],
+      "properties": {
+        "prompt": {
+          "type": "string",
+          "minLength": 1
+        },
+        "context": {
+          "type": "object",
+          "required": [
+            "workspaceRoot",
+            "activeFilePath",
+            "selectedText"
+          ],
+          "properties": {
+            "workspaceRoot": {
+              "type": "string"
+            },
+            "activeFilePath": {
+              "type": "string"
+            },
+            "selectedText": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "settings": {
+          "type": "object",
+          "required": [
+            "maxSteps",
+            "dryRun"
+          ],
+          "properties": {
+            "maxSteps": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "dryRun": {
+              "type": "boolean"
+            },
+            "mode": {
+              "type": "string",
+              "enum": [
+                "agent",
+                "chat"
+              ],
+              "default": "agent"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "response": {
+      "type": "object",
+      "required": [
+        "requestId",
+        "status",
+        "plan",
+        "observations",
+        "finalMessage",
+        "durationMs"
+      ],
+      "properties": {
+        "requestId": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "plan": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "step",
+              "title",
+              "status"
+            ],
+            "properties": {
+              "step": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "title": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "source",
+              "message"
+            ],
+            "properties": {
+              "source": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "finalMessage": {
+          "type": "string"
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "request",
+    "response"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,63 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "extension: build",
+      "type": "shell",
+      "command": "npm run build",
+      "options": {
+        "cwd": "${workspaceFolder}/extension"
+      },
+      "group": "build",
+      "problemMatcher": [
+        "$tsc"
+      ]
+    },
+    {
+      "label": "runtime: run (lmstudio)",
+      "type": "shell",
+      "command": "if lsof -nP -iTCP:8080 -sTCP:LISTEN -t >/dev/null 2>&1; then echo 'agent runtime listening on :8080 (already running)'; else AGENT_ALLOW_COMMANDS=true AGENT_PROVIDER=lmstudio LMSTUDIO_MODEL=qwen/qwen2.5-coder-14b go run ./cmd/agentd; fi",
+      "options": {
+        "cwd": "${workspaceFolder}/runtime"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "owner": "custom",
+          "pattern": {
+            "regexp": "^(.*)$",
+            "message": 1
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "agent runtime listening on"
+          }
+        }
+      ]
+    },
+    {
+      "label": "runtime: run (ollama)",
+      "type": "shell",
+      "command": "if lsof -nP -iTCP:8080 -sTCP:LISTEN -t >/dev/null 2>&1; then echo 'agent runtime listening on :8080 (already running)'; else AGENT_ALLOW_COMMANDS=true AGENT_PROVIDER=ollama OLLAMA_MODEL=llama3.2:3b go run ./cmd/agentd; fi",
+      "options": {
+        "cwd": "${workspaceFolder}/runtime"
+      },
+      "isBackground": true,
+      "problemMatcher": [
+        {
+          "owner": "custom",
+          "pattern": {
+            "regexp": "^(.*)$",
+            "message": 1
+          },
+          "background": {
+            "activeOnStart": true,
+            "beginsPattern": ".",
+            "endsPattern": "agent runtime listening on"
+          }
+        }
+      ]
+    }
+  ]
+}
