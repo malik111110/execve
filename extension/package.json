@@ -14,6 +14,10 @@
   "contributes": {
     "commands": [
       {
+        "command": "localAgent.openStudio",
+        "title": "Local Agent: Open Studio"
+      },
+      {
         "command": "localAgent.startAgentSession",
         "title": "Local Agent: Start Agent Session"
       },

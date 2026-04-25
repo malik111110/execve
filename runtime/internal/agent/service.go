@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	agentapi "github.com/digitalcenter/vscode-ex-llm/runtime/internal/api"
@@ -16,6 +17,12 @@ import (
 )
 
 var ErrInvalidRequest = errors.New("invalid request")
+
+const (
+	maxCommandMemoryEntries      = 6
+	maxCommandMemoryPromptBlocks = 3
+	maxCommandMemoryOutputChars  = 1200
+)
 
 var (
 	quotedPathPattern        = regexp.MustCompile(`["']([^"']+)["']`)
@@ -30,9 +37,21 @@ var (
 
 type StreamEmitter func(event string, payload any) error
 
+type commandMemoryEntry struct {
+	Command    string
+	ExitCode   int
+	TimedOut   bool
+	DurationMs int
+	Stdout     string
+	Stderr     string
+	RecordedAt time.Time
+}
+
 type Service struct {
-	provider providers.Provider
-	registry *tools.Registry
+	provider      providers.Provider
+	registry      *tools.Registry
+	memoryMu      sync.Mutex
+	commandMemory map[string][]commandMemoryEntry
 }
 
 func NewService(provider providers.Provider, registry *tools.Registry) *Service {
@@ -45,8 +64,9 @@ func NewService(provider providers.Provider, registry *tools.Registry) *Service 
 	}
 
 	return &Service{
-		provider: provider,
-		registry: registry,
+		provider:      provider,
+		registry:      registry,
+		commandMemory: make(map[string][]commandMemoryEntry),
 	}
 }
 
@@ -104,6 +124,7 @@ func (s *Service) runInternal(
 	}
 
 	mode := normalizeExecutionMode(req.Settings.Mode)
+	memoryKey := s.commandMemoryKey(req.Context)
 
 	if mode == "agent" {
 		deterministicMessage, deterministicObservations, deterministicHandled, deterministicErr := s.tryDeterministicAction(ctx, req)
@@ -177,6 +198,14 @@ func (s *Service) runInternal(
 	}
 
 	toolObservations, toolContextBlocks := s.runCandidateTools(ctx, req)
+	if commandMemoryBlock, commandMemoryCount := s.buildCommandMemoryContext(memoryKey); commandMemoryBlock != "" {
+		toolContextBlocks = append(toolContextBlocks, commandMemoryBlock)
+		toolObservations = append(toolObservations, agentapi.Observation{
+			Source:  "memory.command_results",
+			Message: fmt.Sprintf("loaded %d recent command result(s)", commandMemoryCount),
+		})
+	}
+
 	if mode == "chat" {
 		toolObservations = append([]agentapi.Observation{{
 			Source:  "runtime",
@@ -519,6 +548,7 @@ func (s *Service) tryDeterministicAction(
 	req agentapi.AgentRequest,
 ) (string, []agentapi.Observation, bool, error) {
 	workspaceRoot := resolveWorkspaceRoot(req.Context)
+	memoryKey := s.commandMemoryKey(req.Context)
 
 	commandForFile, outputFilePath, isCommandToFileRequest := parseCommandToMarkdownFileRequest(req.Prompt)
 	if isCommandToFileRequest {
@@ -542,6 +572,8 @@ func (s *Service) tryDeterministicAction(
 				Message: fmt.Sprintf("failed: %v", commandErr),
 			}}, true, commandErr
 		}
+
+		s.rememberCommandResult(memoryKey, commandResult)
 
 		observations := []agentapi.Observation{{
 			Source:  "tool.execute_command",
@@ -677,6 +709,8 @@ func (s *Service) tryDeterministicAction(
 			Message: fmt.Sprintf("failed: %v", err),
 		}}, true, err
 	}
+
+	s.rememberCommandResult(memoryKey, result)
 
 	message := summarizeCommandResult(result)
 	observations := []agentapi.Observation{{
@@ -962,6 +996,116 @@ func formatCommandResultMarkdown(result map[string]any) string {
 	builder.WriteString("```\n")
 
 	return builder.String()
+}
+
+func (s *Service) commandMemoryKey(ctx agentapi.AgentContext) string {
+	workspaceRoot := resolveWorkspaceRoot(ctx)
+	if workspaceRoot == "" {
+		return "__global__"
+	}
+
+	return filepath.Clean(workspaceRoot)
+}
+
+func (s *Service) rememberCommandResult(memoryKey string, result map[string]any) {
+	if strings.TrimSpace(memoryKey) == "" || result == nil || mapBool(result, "dry_run") {
+		return
+	}
+
+	entry := commandMemoryEntry{
+		Command:    mapString(result, "command"),
+		ExitCode:   mapInt(result, "exit_code"),
+		TimedOut:   mapBool(result, "timed_out"),
+		DurationMs: mapInt(result, "duration_ms"),
+		Stdout:     truncateCommandMemoryOutput(mapString(result, "stdout")),
+		Stderr:     truncateCommandMemoryOutput(mapString(result, "stderr")),
+		RecordedAt: time.Now().UTC(),
+	}
+
+	if strings.TrimSpace(entry.Command) == "" {
+		return
+	}
+
+	s.memoryMu.Lock()
+	defer s.memoryMu.Unlock()
+
+	entries := append(s.commandMemory[memoryKey], entry)
+	if len(entries) > maxCommandMemoryEntries {
+		entries = entries[len(entries)-maxCommandMemoryEntries:]
+	}
+
+	s.commandMemory[memoryKey] = entries
+}
+
+func (s *Service) buildCommandMemoryContext(memoryKey string) (string, int) {
+	if strings.TrimSpace(memoryKey) == "" {
+		return "", 0
+	}
+
+	entries := s.commandMemorySnapshot(memoryKey)
+	if len(entries) == 0 {
+		return "", 0
+	}
+
+	start := 0
+	if len(entries) > maxCommandMemoryPromptBlocks {
+		start = len(entries) - maxCommandMemoryPromptBlocks
+	}
+
+	selected := entries[start:]
+	var builder strings.Builder
+	builder.WriteString("Recent command results memory:\n")
+
+	for idx, entry := range selected {
+		builder.WriteString("\n")
+		builder.WriteString(fmt.Sprintf("[%d] Command: %s\n", idx+1, entry.Command))
+		builder.WriteString(fmt.Sprintf("Exit code: %d | Duration: %d ms | Timed out: %t\n", entry.ExitCode, entry.DurationMs, entry.TimedOut))
+
+		if strings.TrimSpace(entry.Stdout) == "" {
+			builder.WriteString("Stdout: (empty)\n")
+		} else {
+			builder.WriteString("Stdout:\n")
+			builder.WriteString(entry.Stdout)
+			builder.WriteString("\n")
+		}
+
+		if strings.TrimSpace(entry.Stderr) == "" {
+			builder.WriteString("Stderr: (empty)\n")
+		} else {
+			builder.WriteString("Stderr:\n")
+			builder.WriteString(entry.Stderr)
+			builder.WriteString("\n")
+		}
+	}
+
+	return strings.TrimSpace(builder.String()), len(entries)
+}
+
+func (s *Service) commandMemorySnapshot(memoryKey string) []commandMemoryEntry {
+	s.memoryMu.Lock()
+	defer s.memoryMu.Unlock()
+
+	entries := s.commandMemory[memoryKey]
+	if len(entries) == 0 {
+		return nil
+	}
+
+	cloned := make([]commandMemoryEntry, len(entries))
+	copy(cloned, entries)
+	return cloned
+}
+
+func truncateCommandMemoryOutput(value string) string {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return ""
+	}
+
+	if len(trimmed) > maxCommandMemoryOutputChars {
+		return trimmed[:maxCommandMemoryOutputChars] + "..."
+	}
+
+	return trimmed
 }
 
 func sanitizePathCandidate(candidate string) string {

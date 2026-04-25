@@ -46,6 +46,7 @@ npm run build
 2. Press `F5` to launch Extension Development Host.
 3. Run one of these commands:
 
+	- `Local Agent: Open Studio`
 	- `Local Agent: Start Agent Session`
 	- `Local Agent: Start Chat Session`
 
@@ -55,6 +56,7 @@ With runtime running, execute command in extension host and submit a prompt.
 
 Expected result:
 
+- Studio webview opens with mode switch, context cards, timeline, and prompt composer
 - output channel `Local LLM Agent` streams status/plan/tool observations/tokens in real time
 - notification appears with response summary
 

@@ -47,3 +47,18 @@ Runtime now loads these prompt files (when present) before provider generation s
 - tool catalog and format rules
 - file-modification policy
 - user request and selected context blocks
+
+## Command Results Memory and Context Management
+
+To keep command execution useful for follow-up reasoning, the runtime keeps a short-term command memory per workspace root.
+
+- Every successful non-dry-run command stores:
+   - command string
+   - exit code, timeout flag, duration
+   - bounded stdout/stderr snippets
+- Memory is bounded to prevent prompt explosion:
+   - keep last few command entries
+   - truncate each output snippet to a fixed max size
+   - inject only the most recent subset into model prompts
+
+This gives the model reliable operational context from prior tool actions while preserving latency and token budget.

@@ -13,6 +13,28 @@ import (
 	"github.com/digitalcenter/vscode-ex-llm/runtime/internal/tools"
 )
 
+type promptCaptureProvider struct {
+	lastPrompt string
+}
+
+func (p *promptCaptureProvider) Name() string {
+	return "capture"
+}
+
+func (p *promptCaptureProvider) Generate(_ context.Context, prompt string) (string, error) {
+	p.lastPrompt = prompt
+	return "captured", nil
+}
+
+func (p *promptCaptureProvider) GenerateStream(_ context.Context, prompt string, onToken func(string) error) error {
+	p.lastPrompt = prompt
+	if onToken != nil {
+		return onToken("captured")
+	}
+
+	return nil
+}
+
 func TestRunRejectsEmptyPrompt(t *testing.T) {
 	svc := NewService(mock.NewProvider(), tools.NewRegistry())
 
@@ -275,5 +297,60 @@ func TestRunChatModeBypassesDeterministicActions(t *testing.T) {
 
 	if _, statErr := os.Stat(filepath.Join(workspaceRoot, "chat_mode_should_not_exist.txt")); !errors.Is(statErr, os.ErrNotExist) {
 		t.Fatalf("expected file to not be created in chat mode, stat err=%v", statErr)
+	}
+}
+
+func TestRunFeedsRecentCommandResultsIntoProviderPrompt(t *testing.T) {
+	workspaceRoot := t.TempDir()
+	t.Setenv("AGENT_ALLOW_COMMANDS", "true")
+
+	provider := &promptCaptureProvider{}
+	registry := tools.NewRegistry()
+	registry.Register(tools.NewExecuteCommandTool())
+
+	svc := NewService(provider, registry)
+
+	_, err := svc.Run(context.Background(), agentapi.AgentRequest{
+		Prompt: `run command "echo memory-check"`,
+		Context: agentapi.AgentContext{
+			WorkspaceRoot: workspaceRoot,
+		},
+		Settings: agentapi.AgentSettings{
+			MaxSteps: 5,
+			DryRun:   false,
+			Mode:     "agent",
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected command execution error: %v", err)
+	}
+
+	provider.lastPrompt = ""
+
+	_, err = svc.Run(context.Background(), agentapi.AgentRequest{
+		Prompt: "summarize what happened in the previous command",
+		Context: agentapi.AgentContext{
+			WorkspaceRoot: workspaceRoot,
+		},
+		Settings: agentapi.AgentSettings{
+			MaxSteps: 5,
+			DryRun:   false,
+			Mode:     "agent",
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected provider generation error: %v", err)
+	}
+
+	if !strings.Contains(provider.lastPrompt, "Recent command results memory") {
+		t.Fatalf("expected provider prompt to include command memory block, got %q", provider.lastPrompt)
+	}
+
+	if !strings.Contains(provider.lastPrompt, "echo memory-check") {
+		t.Fatalf("expected provider prompt to include recent command, got %q", provider.lastPrompt)
+	}
+
+	if !strings.Contains(provider.lastPrompt, "memory-check") {
+		t.Fatalf("expected provider prompt to include recent stdout, got %q", provider.lastPrompt)
 	}
 }

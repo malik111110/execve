@@ -45,12 +45,14 @@ This repository is scaffolded for a local-first coding agent:
 
 3. Launch the extension host from VS Code and run command:
 
+   - `Local Agent: Open Studio`
    - `Local Agent: Start Agent Session`
    - `Local Agent: Start Chat Session`
 
 ## Current Scope
 
 - Deterministic request/plan/response loop
+- Dedicated Studio webview for contextual prompting, stream rendering, and run timeline
 - One-click agent vs chat session commands in VS Code
 - Local HTTP bridge from extension to runtime
 - Streaming runtime responses to extension via SSE
