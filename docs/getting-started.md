@@ -47,6 +47,16 @@ npm run build
 3. Run one of these commands:
 
 	- `Local Agent: Open Studio`
+	- `Local Agent: New Conversation`
+	- `Local Agent: Focus Input`
+	- `Local Agent: Continue Command Output`
+	- `Local Agent: Stop Running Command`
+	- `Local Agent: Open Latest Diff`
+	- `Local Agent: Accept Latest Diff`
+	- `Local Agent: Reject Latest Diff`
+	- `Local Agent: Insert Active Symbol Context`
+	- `Local Agent: Insert Git Diff Context`
+	- `Local Agent: Insert Failing Tests Context`
 	- `Local Agent: Start Agent Session`
 	- `Local Agent: Start Chat Session`
 
@@ -56,7 +66,15 @@ With runtime running, execute command in extension host and submit a prompt.
 
 Expected result:
 
-- Studio webview opens with mode switch, context cards, timeline, and prompt composer
+- Studio webview opens with mode switch, context cards, trace panel, and prompt composer
+- approval mode picker is available in Studio header
+- tool trace panel shows collapsible trace cards with payload preview and copy actions
+- latest workspace diff can be opened as a `diff` document directly in VS Code
+- latest workspace diff can be accepted (stage) or rejected (revert) from Studio or commands
+- command output can be explicitly continued or stopped from Studio controls and commands
+- conversation and trace history restore automatically per workspace
+- Timeline view updates for changed files with Local Agent change snapshots
+- context shortcut buttons insert active symbol, git diff, and failing test context into composer
 - output channel `Local LLM Agent` streams status/plan/tool observations/tokens in real time
 - notification appears with response summary
 
@@ -67,6 +85,14 @@ To let the agent actually create files (instead of simulation), set:
 - `localAgent.dryRun = false`
 
 If `localAgent.dryRun = true`, write actions are simulated and no files are changed.
+
+Command permissions and approvals are configurable through:
+
+- `localAgent.permissions.mode`
+- `localAgent.permissions.allowedCommands`
+- `localAgent.permissions.blockedCommands`
+- `localAgent.permissions.allowedMcps`
+- `localAgent.permissions.blockedMcps`
 
 ## 6. Agent Mode vs Chat Mode
 

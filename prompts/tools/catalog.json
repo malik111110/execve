@@ -42,12 +42,34 @@
     },
     {
       "name": "execute_command",
-      "description": "Execute a shell command in workspace root when explicitly enabled.",
+      "description": "Execute or continue shell commands with terminal pooling, line streaming, and permission policy controls.",
       "arguments": {
-        "command": "string, required",
+        "command": "string, required unless continue=true or stop=true",
+        "terminal_id": "string, optional",
+        "terminal_name": "string, optional",
+        "continue": "boolean, optional",
+        "stop": "boolean, optional",
+        "line_offset": "integer, optional",
+        "max_line_events": "integer, optional",
+        "wait_for_completion": "boolean, optional",
+        "wait_ms": "integer, optional",
+        "stream_lines": "boolean, optional",
+        "reuse_terminal": "boolean, optional",
+        "permission_mode": "string, optional: defaultApproval|bypassApproval|autopilot",
+        "permission_policy": "object, optional: allowed_commands|blocked_commands|allowed_mcps|blocked_mcps",
         "dry_run": "boolean, optional",
         "timeout_ms": "integer, optional",
         "max_output_bytes": "integer, optional"
+      }
+    },
+    {
+      "name": "ask_follow_up_question",
+      "description": "Generate focused clarification questions when a prompt is too ambiguous for an actionable plan.",
+      "arguments": {
+        "prompt": "string, required",
+        "selected_text": "string, optional",
+        "active_file_path": "string, optional",
+        "max_questions": "integer, optional, default 3"
       }
     }
   ]

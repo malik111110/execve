@@ -1,0 +1,90 @@
+name: Feature Request
+description: Propose an improvement or new capability.
+title: "[Feature]: "
+labels:
+  - enhancement
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for sharing an idea.
+
+        Strong requests explain the problem, the intended user impact,
+        and how success will be measured.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short Summary
+      description: One sentence summary of the request.
+      placeholder: Add persistent command output resume from the Studio panel
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Target Area
+      description: Which area should this change primarily affect?
+      options:
+        - extension
+        - runtime
+        - prompts
+        - api/schema
+        - docs
+        - ci/cd
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What pain point are you trying to solve?
+      placeholder: Explain the current limitation.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed Solution
+      description: Describe your preferred approach.
+      placeholder: Explain the feature behavior and UX.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternatives did you evaluate?
+      placeholder: Optional but helpful.
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: How do we know this request is complete?
+      placeholder: |
+        - Behavior X works in scenario Y
+        - Command Z returns expected output
+      render: markdown
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Links, mockups, logs, or related issues.
+      render: markdown
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-Submission Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I described the problem and proposed solution clearly.
+          required: true

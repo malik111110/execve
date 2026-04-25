@@ -54,9 +54,49 @@
               "type": "string",
               "enum": [
                 "agent",
-                "chat"
+                "chat",
+                "plan"
               ],
               "default": "agent"
+            },
+            "permissionMode": {
+              "type": "string",
+              "enum": [
+                "defaultApproval",
+                "bypassApproval",
+                "autopilot"
+              ],
+              "default": "defaultApproval"
+            },
+            "permissionPolicy": {
+              "type": "object",
+              "properties": {
+                "allowedCommands": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "blockedCommands": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "allowedMcps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "blockedMcps": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false
             }
           },
           "additionalProperties": false

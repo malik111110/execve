@@ -18,14 +18,201 @@
         "title": "Local Agent: Open Studio"
       },
       {
+        "command": "localAgent.studio.newConversation",
+        "title": "Local Agent: New Conversation"
+      },
+      {
+        "command": "localAgent.studio.focusInput",
+        "title": "Local Agent: Focus Input"
+      },
+      {
+        "command": "localAgent.studio.continueCommand",
+        "title": "Local Agent: Continue Command Output"
+      },
+      {
+        "command": "localAgent.studio.stopCommand",
+        "title": "Local Agent: Stop Running Command"
+      },
+      {
+        "command": "localAgent.studio.openLatestDiff",
+        "title": "Local Agent: Open Latest Diff"
+      },
+      {
+        "command": "localAgent.studio.acceptLatestDiff",
+        "title": "Local Agent: Accept Latest Diff"
+      },
+      {
+        "command": "localAgent.studio.rejectLatestDiff",
+        "title": "Local Agent: Reject Latest Diff"
+      },
+      {
+        "command": "localAgent.studio.insertContext.activeSymbol",
+        "title": "Local Agent: Insert Active Symbol Context"
+      },
+      {
+        "command": "localAgent.studio.insertContext.gitDiff",
+        "title": "Local Agent: Insert Git Diff Context"
+      },
+      {
+        "command": "localAgent.studio.insertContext.failingTests",
+        "title": "Local Agent: Insert Failing Tests Context"
+      },
+      {
         "command": "localAgent.startAgentSession",
         "title": "Local Agent: Start Agent Session"
       },
       {
         "command": "localAgent.startChatSession",
         "title": "Local Agent: Start Chat Session"
+      },
+      {
+        "command": "localAgent.startPlanSession",
+        "title": "Local Agent: Start Plan Session"
       }
     ],
+    "keybindings": [
+      {
+        "command": "localAgent.studio.focusInput",
+        "key": "ctrl+escape",
+        "mac": "cmd+escape",
+        "when": "localAgent.studioOpen"
+      },
+      {
+        "command": "localAgent.studio.newConversation",
+        "key": "ctrl+n",
+        "mac": "cmd+n",
+        "when": "localAgent.studioOpen && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.insertContext.activeSymbol",
+        "key": "ctrl+alt+k",
+        "mac": "alt+cmd+k",
+        "when": "localAgent.studioOpen && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.insertContext.gitDiff",
+        "key": "ctrl+alt+d",
+        "mac": "alt+cmd+d",
+        "when": "localAgent.studioOpen && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.insertContext.failingTests",
+        "key": "ctrl+alt+t",
+        "mac": "alt+cmd+t",
+        "when": "localAgent.studioOpen && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.continueCommand",
+        "key": "ctrl+alt+enter",
+        "mac": "alt+cmd+enter",
+        "when": "localAgent.studioOpen && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.stopCommand",
+        "key": "ctrl+alt+backspace",
+        "mac": "alt+cmd+backspace",
+        "when": "localAgent.studioOpen && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.openLatestDiff",
+        "key": "ctrl+shift+escape",
+        "mac": "shift+cmd+escape",
+        "when": "localAgent.studioOpen && localAgent.studioHasDiff"
+      },
+      {
+        "command": "localAgent.studio.acceptLatestDiff",
+        "key": "ctrl+shift+enter",
+        "mac": "shift+cmd+enter",
+        "when": "localAgent.studioOpen && localAgent.studioHasDiff && !localAgent.studioBusy"
+      },
+      {
+        "command": "localAgent.studio.rejectLatestDiff",
+        "key": "ctrl+shift+delete",
+        "mac": "shift+cmd+delete",
+        "when": "localAgent.studioOpen && localAgent.studioHasDiff && !localAgent.studioBusy"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "localAgent.studio.focusInput",
+          "when": "localAgent.studioOpen"
+        },
+        {
+          "command": "localAgent.studio.newConversation",
+          "when": "localAgent.studioOpen"
+        },
+        {
+          "command": "localAgent.studio.continueCommand",
+          "when": "localAgent.studioOpen && !localAgent.studioBusy"
+        },
+        {
+          "command": "localAgent.studio.stopCommand",
+          "when": "localAgent.studioOpen && !localAgent.studioBusy"
+        },
+        {
+          "command": "localAgent.studio.openLatestDiff",
+          "when": "localAgent.studioOpen && localAgent.studioHasDiff"
+        },
+        {
+          "command": "localAgent.studio.acceptLatestDiff",
+          "when": "localAgent.studioOpen && localAgent.studioHasDiff"
+        },
+        {
+          "command": "localAgent.studio.rejectLatestDiff",
+          "when": "localAgent.studioOpen && localAgent.studioHasDiff"
+        },
+        {
+          "command": "localAgent.studio.insertContext.activeSymbol",
+          "when": "localAgent.studioOpen"
+        },
+        {
+          "command": "localAgent.studio.insertContext.gitDiff",
+          "when": "localAgent.studioOpen"
+        },
+        {
+          "command": "localAgent.studio.insertContext.failingTests",
+          "when": "localAgent.studioOpen"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "localAgent.studio.insertContext.activeSymbol",
+          "when": "localAgent.studioOpen",
+          "group": "navigation@40"
+        },
+        {
+          "command": "localAgent.studio.insertContext.gitDiff",
+          "when": "localAgent.studioOpen",
+          "group": "navigation@41"
+        },
+        {
+          "command": "localAgent.studio.insertContext.failingTests",
+          "when": "localAgent.studioOpen",
+          "group": "navigation@42"
+        },
+        {
+          "command": "localAgent.studio.continueCommand",
+          "when": "localAgent.studioOpen && !localAgent.studioBusy",
+          "group": "navigation@43"
+        },
+        {
+          "command": "localAgent.studio.stopCommand",
+          "when": "localAgent.studioOpen && !localAgent.studioBusy",
+          "group": "navigation@44"
+        },
+        {
+          "command": "localAgent.studio.acceptLatestDiff",
+          "when": "localAgent.studioOpen && localAgent.studioHasDiff",
+          "group": "navigation@45"
+        },
+        {
+          "command": "localAgent.studio.rejectLatestDiff",
+          "when": "localAgent.studioOpen && localAgent.studioHasDiff",
+          "group": "navigation@46"
+        }
+      ]
+    },
     "configuration": {
       "title": "Local Agent",
       "properties": {
@@ -49,6 +236,48 @@
           "type": "boolean",
           "default": false,
           "description": "If true, runtime actions are simulated and no file changes are applied."
+        },
+        "localAgent.permissions.mode": {
+          "type": "string",
+          "enum": [
+            "defaultApproval",
+            "bypassApproval",
+            "autopilot"
+          ],
+          "default": "defaultApproval",
+          "description": "Command and MCP permission mode for local runtime actions."
+        },
+        "localAgent.permissions.allowedCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Allow-list command patterns (supports wildcard *) used by runtime command execution."
+        },
+        "localAgent.permissions.blockedCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Block-list command patterns (supports wildcard *) that are always denied."
+        },
+        "localAgent.permissions.allowedMcps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Allow-list MCP identifiers propagated to runtime policy metadata."
+        },
+        "localAgent.permissions.blockedMcps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Block-list MCP identifiers propagated to runtime policy metadata."
         }
       }
     }

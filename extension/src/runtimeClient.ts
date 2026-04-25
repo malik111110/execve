@@ -1,9 +1,14 @@
 import {
   AgentRequest,
   AgentResponse,
+  ListSessionsResponse,
   Observation,
   PlanStep,
-  RuntimeStreamCallbacks
+  RuntimeStreamCallbacks,
+  SessionAPIResponsesResponse,
+  SessionMessage,
+  SessionMessagesResponse,
+  SessionSummary
 } from "./types";
 
 export class RuntimeClient {
@@ -13,36 +18,106 @@ export class RuntimeClient {
   ) {}
 
   async run(payload: AgentRequest): Promise<AgentResponse> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    return this.requestJson<AgentResponse>("/v1/agent/run", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  }
 
-    try {
-      const response = await fetch(`${normalizeBaseUrl(this.baseUrl)}/v1/agent/run`, {
-        method: "POST",
+  async listSessions(workspaceRoot: string, limit = 40): Promise<SessionSummary[]> {
+    const url = new URL(`${normalizeBaseUrl(this.baseUrl)}/v1/sessions`);
+    if (workspaceRoot.trim()) {
+      url.searchParams.set("workspaceRoot", workspaceRoot.trim());
+    }
+    url.searchParams.set("limit", String(limit));
+
+    const response = await this.requestJson<ListSessionsResponse>(url.toString(), {
+      method: "GET"
+    }, true);
+
+    return Array.isArray(response.sessions) ? response.sessions : [];
+  }
+
+  async listSessionMessages(sessionId: string, limit = 120): Promise<SessionMessage[]> {
+    const normalizedSessionId = sessionId.trim();
+    if (!normalizedSessionId) {
+      return [];
+    }
+
+    const encodedSessionId = encodeURIComponent(normalizedSessionId);
+    const url = new URL(
+      `${normalizeBaseUrl(this.baseUrl)}/v1/sessions/${encodedSessionId}/messages`
+    );
+    url.searchParams.set("limit", String(limit));
+
+    const response = await this.requestJson<SessionMessagesResponse>(url.toString(), {
+      method: "GET"
+    }, true);
+
+    return Array.isArray(response.messages) ? response.messages : [];
+  }
+
+  async listSessionResponses(sessionId: string, limit = 80): Promise<SessionAPIResponsesResponse> {
+    const normalizedSessionId = sessionId.trim();
+    if (!normalizedSessionId) {
+      return {
+        sessionId: "",
+        responses: []
+      };
+    }
+
+    const encodedSessionId = encodeURIComponent(normalizedSessionId);
+    const url = new URL(
+      `${normalizeBaseUrl(this.baseUrl)}/v1/sessions/${encodedSessionId}/responses`
+    );
+    url.searchParams.set("limit", String(limit));
+
+    const response = await this.requestJson<SessionAPIResponsesResponse>(url.toString(), {
+      method: "GET"
+    }, true);
+
+    return {
+      sessionId: response.sessionId,
+      responses: Array.isArray(response.responses) ? response.responses : []
+    };
+  }
+
+  async renameSession(sessionId: string, title: string): Promise<void> {
+    const normalizedSessionId = sessionId.trim();
+    const normalizedTitle = title.trim();
+    if (!normalizedSessionId || !normalizedTitle) {
+      return;
+    }
+
+    const encodedSessionId = encodeURIComponent(normalizedSessionId);
+    await this.requestJson<{ updated?: boolean }>(
+      `/v1/sessions/${encodedSessionId}`,
+      {
+        method: "PATCH",
         headers: {
           "content-type": "application/json"
         },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(
-          `Runtime request failed (${response.status}): ${text || response.statusText}`
-        );
+        body: JSON.stringify({ title: normalizedTitle })
       }
+    );
+  }
 
-      return (await response.json()) as AgentResponse;
-    } catch (error) {
-      if (error instanceof Error && error.name === "AbortError") {
-        throw new Error(`Runtime request timed out after ${this.timeoutMs}ms`);
-      }
-
-      throw error;
-    } finally {
-      clearTimeout(timer);
+  async deleteSession(sessionId: string): Promise<void> {
+    const normalizedSessionId = sessionId.trim();
+    if (!normalizedSessionId) {
+      return;
     }
+
+    const encodedSessionId = encodeURIComponent(normalizedSessionId);
+    await this.requestJson<{ deleted?: boolean }>(
+      `/v1/sessions/${encodedSessionId}`,
+      {
+        method: "DELETE"
+      }
+    );
   }
 
   async runStream(
@@ -126,6 +201,43 @@ export class RuntimeClient {
       if (timer) {
         clearTimeout(timer);
       }
+    }
+  }
+
+  private async requestJson<T>(
+    endpointOrUrl: string,
+    init: RequestInit,
+    isAbsoluteUrl = false
+  ): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+
+    try {
+      const requestUrl = isAbsoluteUrl
+        ? endpointOrUrl
+        : `${normalizeBaseUrl(this.baseUrl)}${endpointOrUrl}`;
+
+      const response = await fetch(requestUrl, {
+        ...init,
+        signal: controller.signal
+      });
+
+      if (!response.ok) {
+        const text = await response.text();
+        throw new Error(
+          `Runtime request failed (${response.status}): ${text || response.statusText}`
+        );
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error(`Runtime request timed out after ${this.timeoutMs}ms`);
+      }
+
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

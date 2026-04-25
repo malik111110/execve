@@ -1,0 +1,102 @@
+name: Bug Report
+description: Report a reproducible problem in the runtime, extension, prompts, or docs.
+title: "[Bug]: "
+labels:
+  - bug
+  - needs-triage
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for filing a bug report.
+
+        Please include clear reproduction steps.
+        Do not report security vulnerabilities here. Use SECURITY.md instead.
+
+  - type: input
+    id: summary
+    attributes:
+      label: Short Summary
+      description: One sentence summary of the bug.
+      placeholder: Runtime stream stops after first token
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected Area
+      description: Select the primary area impacted.
+      options:
+        - extension
+        - runtime
+        - prompts
+        - api/schema
+        - docs
+        - ci/cd
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_behavior
+    attributes:
+      label: Current Behavior
+      description: What is happening right now?
+      placeholder: Describe what you see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes:
+      label: Expected Behavior
+      description: What should happen instead?
+      placeholder: Describe the expected result.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction_steps
+    attributes:
+      label: Reproduction Steps
+      description: Provide minimal, ordered steps.
+      placeholder: |
+        1. Start runtime with ...
+        2. Open Studio and run ...
+        3. Observe ...
+      render: markdown
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, Errors, or Screenshots
+      description: Paste relevant output from runtime or extension build/test.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: Commit, Tag, or Branch
+      description: Which version are you running?
+      placeholder: main @ abc1234
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Go version, Node version, and VS Code version.
+      placeholder: macOS 14, Go 1.22, Node 20, VS Code 1.xx
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-Submission Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I included clear reproduction steps.
+          required: true
+        - label: This is not a security vulnerability report.
+          required: true

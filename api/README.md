@@ -9,6 +9,11 @@ Current artifact:
 
 - `agent.schema.json`: JSON schema for `/v1/agent/run`
 
+Recent additions in request settings:
+
+- `permissionMode`: `defaultApproval`, `bypassApproval`, or `autopilot`
+- `permissionPolicy`: optional command and MCP allow/block lists
+
 As the project evolves, add:
 
 - versioned schemas
